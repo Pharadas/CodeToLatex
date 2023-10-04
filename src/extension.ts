@@ -23,9 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
       let tex: string = "";
       try {
         text = text.replace(/^\ *(.)/g, '$1'); // remove trailing whitespace
-        console.log(text);
         tex = pythonToLatex(text, settings['code_to_latex']);
-        console.log(tex);
 
       } catch (error) {
         const actions = [{ title: "Don't show again" }];
