@@ -16,18 +16,23 @@ export function activate(context: vscode.ExtensionContext) {
           activeEditor.document.lineAt(activeEditor.selection.active.line).text
         );
       }
-      
+
+      var quote = vscode.workspace.getConfiguration();
+      var settings = JSON.parse(JSON.stringify(quote));
+
       let tex: string = "";
       try {
-        console.log();
-        
-        tex = pythonToLatex(text);
+        text = text.replace(/^\ *(.)/g, '$1'); // remove trailing whitespace
+        console.log(text);
+        tex = pythonToLatex(text, settings['code_to_latex']);
+        console.log(tex);
+
       } catch (error) {
         const actions = [{ title: "Don't show again" }];
 
         if (shouldShowInformationMessages) {
           const result = await vscode.window.showInformationMessage(
-            `gaming time!`,
+            `Invalid Python`,
             ...actions
           );
 

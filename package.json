@@ -2,13 +2,14 @@
   "name": "code-to-latex",
   "displayName": "code-to-latex",
   "description": "",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.82.0"
   },
   "categories": [
     "Other"
   ],
+  "publisher": "Pharadas",
   "repository": {
     "type": "git",
     "url": "https://github.com/Pharadas/CodeToLatex"
@@ -32,15 +33,20 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.82.0",
     "@types/mocha": "^10.0.2",
     "@types/node": "18.x",
+    "@types/vscode": "^1.82.0",
     "@typescript-eslint/eslint-plugin": "^6.7.3",
     "@typescript-eslint/parser": "^6.7.3",
+    "@vscode/test-electron": "^2.3.4",
+    "@andrewhead/python-program-analysis": "0.4.8",
     "eslint": "^8.50.0",
     "glob": "^10.3.3",
     "mocha": "^10.2.0",
-    "typescript": "^5.2.2",
-    "@vscode/test-electron": "^2.3.4"
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@andrewhead/python-program-analysis": "^0.4.8",
+    "vscode-languageclient": "^9.0.1"
   }
 }

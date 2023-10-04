@@ -1,12 +1,7 @@
-const recognizedFunctions: Record<string, string> = {
-  "abs 1": "|$1|",
-  "sqrt 1": "\\sqrt{$1}",
-  "sumar_dos_numeros 2": "$1+$2",
-  "funcion_de_cruce_vectores 2": "\\vec{$1}\\times\\vec{$2}",
-  "multiply 2": "(\\overrightarrow{$1}\\cdot\\overrightarrow{$2})",
-  "cross 2": "(\\overrightarrow{$1}\\times\\overrightarrow{$2})",
-  "max 2": "$1 > $2"
-}
+import {parse, ControlFlowGraph, Block} from "@andrewhead/python-program-analysis";
+import { log } from "console";
+
+let recognizedFunctions: Record<string, string> = {}
 
 const recognizedVariables: Record<string, string> = {
   "theta": "\\theta",
@@ -43,9 +38,11 @@ const recognizedVariables: Record<string, string> = {
   "Omega": "\\Omega",
 }
 
+var userRecognizedVariables: Record<string, string> = {};
+
 const recognizedOperators: Record<string, string> = {
   "/": "\\frac{$1}{$2}",
-  "*": "$1\\cdot $2",
+  "*": "$1$2",
   "^": "{($1)}^{$2}",
   "=": "$1=$2"
 }
@@ -74,6 +71,8 @@ const separators: Record<string, number> = {
   "/": 1,
   "+": 1,
   "-": 1,
+  "[": 1,
+  "]": 1,
   "(": 1,
   ")": 1,
   ",": 1,
@@ -118,205 +117,174 @@ const keywords: Record<string, number> = {
   "yield": 1,
 }
 
-export default function pythonToLatex(lst: string): string {
-  console.log("gaming time");
-  let json = pythonTokenizer(lst);
-  console.log(json);
-  json = pythonToJson(json);
-  return jsonToLatex(json);
+function blockToLatex(input: any): string {
+  log(input);
+
+  if (input.type === 'assign') {
+    log(input);
+    return blockToLatex(input.targets) + "=" + blockToLatex(input.sources);
+  }
+
+  else if (input.type === 'list') {
+    let temp = "\\begin{bmatrix}";
+    log("gaming", input);
+
+    for (let teno = 0; teno < input.items.length; teno++) {
+      log(teno);
+      if (input.items[teno].type === 'list' || (teno < input.items.length - 1 && input.items[teno + 1].type === 'list')) {
+        temp += blockToLatex(input.items[teno]);
+        if (teno !== input.items.length - 1) {
+          temp += "\\\\";
+        }
+      } else {
+        temp += blockToLatex(input.items[teno]);
+        if (teno !== input.items.length - 1) {
+          temp += "&";
+        }
+      }
+    }
+
+    return temp + "\\end{bmatrix}";
+  }
+
+  else if (input.type === 'binop') {
+    if (input.op in recognizedOperators) {
+      let temp = recognizedOperators[input.op];
+      temp = temp.replace("$1", blockToLatex(input.left));
+      log(temp);
+      temp = temp.replace("$2", blockToLatex(input.right));
+      return temp;
+    }
+
+    return blockToLatex(input.left) + input.op + blockToLatex(input.right);
+  }
+
+  else if (input.arg1 !== undefined) {
+    log('first block', input);
+    for (var i of input.arg1) {
+      if (i.type === 'assign') {
+        let g = "";
+        for (let f = 0; f < i.targets.length; f++) {
+          g += blockToLatex(i.targets[f]) + "=" + blockToLatex(i.sources[f]) + "\n";
+        }
+        return g;
+      } else {
+        return blockToLatex(input.arg1);
+      }
+    }
+
+  } else if (input.type === 'index') {
+    return blockToLatex(input.value) + "_{" + blockToLatex(input.args) + "}";
+  }
+
+  else if (input.type === 'tuple') {
+    return blockToLatex(input.items);
+  }
+
+  else if (input.type === 'arg') {
+    return blockToLatex(input.actual);
+  }
+
+  else if (input.type === 'dot') {
+    return blockToLatex(input.value) + "." + input.name;
+  }
+
+  else if (input.type === 'call') { // TODO: this should include the conversion of functions to custom latex
+    if (input.arg1 !== undefined) {
+      return blockToLatex(input.arg1);
+    }
+    log("gaming time");
+
+    let function_signature = "";
+
+    if (input.func.id === undefined) {
+      function_signature = input.func.name + ' ' + input.args.length;
+    } else {
+      function_signature = input.func.id + ' ' + input.args.length;
+    }
+    log("gaming time");
+
+    log(function_signature);
+    log(recognizedFunctions);
+
+    if(function_signature in recognizedFunctions) {
+      let tempStr = recognizedFunctions[function_signature];
+
+      for (let r = 1; r < input.args.length + 1; r++) {
+        tempStr = tempStr.replace("$" + r, blockToLatex(input.args[r - 1]));
+      }
+
+      return tempStr;
+    }
+    log("gaming time");
+
+    return blockToLatex(input.func) + "(" + blockToLatex(input.args) + ")";
+  }
+
+  else if (input.type === 'name') {
+    let resultString = "";
+    let h = "";
+    let underscoreMatch = input.id.match(/\_/g);
+
+    if (underscoreMatch !== null && underscoreMatch.length === 1) {
+      let beforeUnderscore = input.id.match(/.*\_/g)[0];
+      beforeUnderscore = beforeUnderscore.slice(0, beforeUnderscore.length - 1);
+      let afterUnderscore = input.id.match(/\_.*/g)[0];
+      afterUnderscore = afterUnderscore.slice(1, afterUnderscore.length);
+
+      log(beforeUnderscore, afterUnderscore);
+
+      if (beforeUnderscore in recognizedVariables) {
+        resultString += recognizedVariables[beforeUnderscore];
+      } else if (beforeUnderscore in userRecognizedVariables) {
+        resultString += userRecognizedVariables[beforeUnderscore];
+      } else {
+        resultString += beforeUnderscore;
+      }
+
+      if (afterUnderscore in recognizedVariables) {
+        resultString += "_{" + recognizedVariables[afterUnderscore] + "}";
+      } else if (afterUnderscore in userRecognizedVariables) {
+        resultString += "_{" + userRecognizedVariables[afterUnderscore] + "}";
+      } else {
+        resultString += "_{" + afterUnderscore + "}";
+      }
+
+      return resultString;
+    }
+
+    input.id = input.id.replaceAll(/\_/g, '\\_');
+
+    if (input.id in recognizedVariables) {
+      return recognizedVariables[input.id];
+    } else if (input.id in userRecognizedVariables) {
+      return userRecognizedVariables[input.id];
+    }
+    return input.id;
+  } 
+
+  else if (input.type === 'literal') {
+    return input.value;
+
+  } else {
+    let g = "";
+    for (var i of input) {
+      g += blockToLatex(i) + ",";
+    }
+    return g.slice(0, g.length - 1);
+  }
+
+  return "ERROR";
 }
 
-function pythonTokenizer(line: string): string[] {
-  console.log("original line: " + line);
+export default function pythonToLatex(code: string, config: any): string {
+  recognizedFunctions = config.custom_functions;
+  userRecognizedVariables = config.custom_variables;
+  const tree = parse(code);
+  const cfg = new ControlFlowGraph(tree);
 
-  let result: string[] = [];
-  let expression: string = "";
-  line = line.replace(/\ /g, "");
-  line = line.replace(/\*\*/g, "^");
-  line = line.replace(/\_/g, "\\_");
-  line = line.replace(/\=(.*)/, "\=\($1\)");
+  let t = cfg.blocks[0].statements;
+  let f = blockToLatex(t);
 
-  for (let char of line) {
-    if ((char in separators) || (char === " ")) {
-      if (expression !== "") {
-        if (expression in keywords) {
-          throw new Error("Invalid python!");
-        }
-        if (Number.isNaN(parseInt(expression[0]))) { 
-          expression = expression.replace(/^.+\./g, "");
-        }
-        result.push(expression);
-        expression = "";
-      }
-      if (char !== " ") {
-        result.push(char);
-      }
-
-    } else {
-      expression += char;
-    }
-  }
-
-  if (expression !== "") {
-    if (expression in keywords) {
-      throw new Error("Invalid python!");
-    }
-    if (Number.isNaN(parseInt(expression[0]))) { 
-      expression = expression.replace(/^.+\./g, "");
-    }
-    result.push(expression);
-  }
-
-  return result;
-}
-
-function pythonToJson(tokens: string[]): string[] {
-  let resultStack: string[] = [];
-  let operatorStack: any = [];
-  let functionStack: any = [];
-
-  for (let i = 0; i < tokens.length; i++) {
-    let token = tokens[i];
-
-    // * Si el token es una funcion
-    if ((tokens[i + 1] === "(") && !(token in operatorPrecedence) && (token !== "(")) {
-      // * Un poco tonto, pero por ahora funciona simplemente guardar si es una funcion o no
-      operatorStack.push([token]);
-      functionStack.push([token, 1, operatorStack.length])
-    } else if (token in operatorPrecedence) {
-      let lastOperator: string = operatorStack[operatorStack.length - 1];
-
-      while (
-        (lastOperator !== "(") &&
-        (
-          (operatorPrecedence[lastOperator] > operatorPrecedence[token]) ||
-          (
-            (operatorPrecedence[lastOperator] === operatorPrecedence[token]) && (token in leftAssociativeOperators)
-          )
-        )
-      ) {
-        resultStack.push(operatorStack.pop());
-        lastOperator = operatorStack[operatorStack.length - 1];
-      }
-      operatorStack.push(token);
-
-    } else if (token === "(") {
-      operatorStack.push(token);
-
-    } else if ((token === ")") || (token === ",")) {
-      // * Ahora (si esta bien escrita la ecuacion) siempre
-      // * Deberia de haber algo hasta el  "("
-      while (operatorStack[operatorStack.length - 1] !== "(") {
-        resultStack.push(operatorStack.pop());
-      }
-
-      // * Descartamos el "(" una vez que lo encontro, solo si estamos cerrando un parentesis,
-      // * si no, entonces solo metemos todo lo de la coma al stack
-      if (token === ",") {
-        functionStack[functionStack.length - 1][1]++;
-      } else {
-        // * Primero, actualizar la funcion en el stack resultante si es que
-        // * El ")" que se cerro era de una funcion
-        if ((functionStack.length > 0) && (operatorStack[operatorStack.length - 2][0] === functionStack[functionStack.length - 1][0])) {
-          let currentFunction = functionStack.pop();
-          operatorStack[currentFunction[2] - 1].push(currentFunction[1]);
-        }
-
-        operatorStack.pop();
-      }
-      // * Checar si es una funcion viendo si hay algo mas en la lista
-      if (typeof(operatorStack[operatorStack.length - 1]) !== "string") {
-        resultStack.push(operatorStack.pop());
-      }
-
-      // * Si el token es una variable
-    } else {
-      resultStack.push(token);
-    }
-  }
-
-  while (operatorStack.length !== 0) {
-    resultStack.push(operatorStack.pop());
-  }
-
-  return resultStack;
-}
-
-function jsonToLatex(lst: any): any {
-  // console.log("converting json to latex #########");
-
-  let stack: string[] = [];
-  let parenthesesAccounted: boolean = false;
-  // console.log(lst);
-
-  for (let j = 0; j < lst.length; j++) { 
-    // console.log(stack);
-
-    if (!(lst[j] in operatorPrecedence) && (typeof(lst[j]) === "string")) {
-      if (lst[j] in recognizedVariables) {
-        stack.push(recognizedVariables[lst[j]]);
-      } else {
-        stack.push(lst[j]);
-      }
-    } else {
-      // * Si no es un string, sabemos que es una funcion
-      if (typeof(lst[j]) !== "string") {
-        parenthesesAccounted = true;
-        let tempStr = "";
-        let consumeStartIndex = stack.length - lst[j][1];
-
-        // * La 'function signature' es solo el nombre de la funcion y la cantidad de parametros.
-        // * Tal vez para lenguajes con function overloading esto no sea lo mas correcto, pero
-        // * al menos para python por ahora deberia funcionar.
-        let functionSignature = "" + lst[j][0] + " " + lst[j][1];
-        // * Si reconozco la funcion, solo ir consumiendo los parametros para luego
-        // * formatearlos como diga el json
-        if (functionSignature in recognizedFunctions) {
-          let tempLst: any = [];
-
-          while (stack.length > consumeStartIndex) {
-            tempLst.push(stack.splice(consumeStartIndex, 1));
-          }
-
-          tempStr = recognizedFunctions[functionSignature];
-          for (let i = 0; i < tempLst.length; i++) {
-            tempStr = tempStr.replace("$" + (i + 1), tempLst[i]);
-          }
-          stack.push(tempStr);
-
-        // * Si no reconozco la funcion, solo meterla como tal
-        } else {
-          while (stack.length > consumeStartIndex) {
-            tempStr += stack.splice(consumeStartIndex, 1) + ",";
-          }
-
-          tempStr = tempStr.slice(0, -1);
-          stack.push(lst[j][0] + "(" + tempStr + ")");
-        }
-
-      } else {
-        // console.log("###############");
-        // console.log(stack);
-        let op1 = stack.pop();
-        let op2 = stack.pop();
-
-        if (lst[j] in recognizedOperators) {
-          let tempStr = recognizedOperators[lst[j]];
-          tempStr = tempStr.replace("$1", String(op2));
-          tempStr = tempStr.replace("$2", String(op1));
-
-          stack.push(tempStr);
-        } else {
-          if (parenthesesAccounted) {
-            parenthesesAccounted = false;
-            stack.push(op2 + lst[j] + op1);
-          } else {
-            stack.push("(" + op2 + lst[j] + op1 + ")");
-          }
-        }
-      }
-    }
-  }
-
-  return stack.pop();
+  return f;
 }
