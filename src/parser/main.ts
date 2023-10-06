@@ -1,4 +1,7 @@
 import {parse, ControlFlowGraph, Block} from "@andrewhead/python-program-analysis";
+
+// const parser = require("../node_modules/python-program-analysis");
+
 import { log } from "console";
 
 let recognizedFunctions: Record<string, string> = {}
@@ -118,19 +121,15 @@ const keywords: Record<string, number> = {
 }
 
 function blockToLatex(input: any): string {
-  log(input);
 
   if (input.type === 'assign') {
-    log(input);
     return blockToLatex(input.targets) + "=" + blockToLatex(input.sources);
   }
 
   else if (input.type === 'list') {
     let temp = "\\begin{bmatrix}";
-    log("gaming", input);
 
     for (let teno = 0; teno < input.items.length; teno++) {
-      log(teno);
       if (input.items[teno].type === 'list' || (teno < input.items.length - 1 && input.items[teno + 1].type === 'list')) {
         temp += blockToLatex(input.items[teno]);
         if (teno !== input.items.length - 1) {
@@ -151,7 +150,6 @@ function blockToLatex(input: any): string {
     if (input.op in recognizedOperators) {
       let temp = recognizedOperators[input.op];
       temp = temp.replace("$1", blockToLatex(input.left));
-      log(temp);
       temp = temp.replace("$2", blockToLatex(input.right));
       return temp;
     }
@@ -160,7 +158,6 @@ function blockToLatex(input: any): string {
   }
 
   else if (input.arg1 !== undefined) {
-    log('first block', input);
     for (var i of input.arg1) {
       if (i.type === 'assign') {
         let g = "";
@@ -193,7 +190,6 @@ function blockToLatex(input: any): string {
     if (input.arg1 !== undefined) {
       return blockToLatex(input.arg1);
     }
-    log("gaming time");
 
     let function_signature = "";
 
@@ -202,10 +198,6 @@ function blockToLatex(input: any): string {
     } else {
       function_signature = input.func.id + ' ' + input.args.length;
     }
-    log("gaming time");
-
-    log(function_signature);
-    log(recognizedFunctions);
 
     if(function_signature in recognizedFunctions) {
       let tempStr = recognizedFunctions[function_signature];
@@ -216,7 +208,6 @@ function blockToLatex(input: any): string {
 
       return tempStr;
     }
-    log("gaming time");
 
     return blockToLatex(input.func) + "(" + blockToLatex(input.args) + ")";
   }
@@ -231,8 +222,6 @@ function blockToLatex(input: any): string {
       beforeUnderscore = beforeUnderscore.slice(0, beforeUnderscore.length - 1);
       let afterUnderscore = input.id.match(/\_.*/g)[0];
       afterUnderscore = afterUnderscore.slice(1, afterUnderscore.length);
-
-      log(beforeUnderscore, afterUnderscore);
 
       if (beforeUnderscore in recognizedVariables) {
         resultString += recognizedVariables[beforeUnderscore];
@@ -278,8 +267,14 @@ function blockToLatex(input: any): string {
 }
 
 export default function pythonToLatex(code: string, config: any): string {
-  recognizedFunctions = config.custom_functions;
-  userRecognizedVariables = config.custom_variables;
+  if (config.custom_functions !== undefined) {
+    recognizedFunctions = config.custom_functions;
+  }
+
+  if (config.custom_variables !== undefined) {
+    userRecognizedVariables = config.custom_variables;
+  }
+
   const tree = parse(code);
   const cfg = new ControlFlowGraph(tree);
 

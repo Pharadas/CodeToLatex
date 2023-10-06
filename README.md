@@ -67,3 +67,5 @@ This extension also allows visualizing n-d matrices
 ![image](https://github.com/Pharadas/CodeToLatex/assets/60682906/3d702527-f970-4e13-87be-00cdd68f55ab)
 
 ![image](https://github.com/Pharadas/CodeToLatex/assets/60682906/4e76b69b-72d9-447a-8eae-41e661475ba1)
+
+You can use the command "Line to Latex" when your cursor is over the line you want to convert

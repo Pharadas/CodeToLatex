@@ -3,7 +3,6 @@ import * as path from "path";
 import pythonToLatex from "./parser/main";
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log("Python-latex loaded");
   let shouldShowInformationMessages = true;
   
   context.subscriptions.push(
