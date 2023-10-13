@@ -267,12 +267,14 @@ function blockToLatex(input: any): string {
 }
 
 export default function pythonToLatex(code: string, config: any): string {
-  if (config.custom_functions !== undefined) {
-    recognizedFunctions = config.custom_functions;
-  }
+  if (config !== undefined){
+    if (config.custom_functions !== undefined) {
+      recognizedFunctions = config.custom_functions;
+    }
 
-  if (config.custom_variables !== undefined) {
-    userRecognizedVariables = config.custom_variables;
+    if (config.custom_variables !== undefined) {
+      userRecognizedVariables = config.custom_variables;
+    }
   }
 
   const tree = parse(code);
