@@ -121,9 +121,12 @@ const keywords: Record<string, number> = {
 }
 
 function blockToLatex(input: any): string {
-
   if (input.type === 'assign') {
     return blockToLatex(input.targets) + "=" + blockToLatex(input.sources);
+  }
+
+  else if (input.type === 'unop') {
+    return input.op + blockToLatex(input.operand);
   }
 
   else if (input.type === 'list') {
