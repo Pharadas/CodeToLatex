@@ -1,8 +1,5 @@
+import * as vscode from "vscode";
 import {parse, ControlFlowGraph, Block} from "@andrewhead/python-program-analysis";
-
-// const parser = require("../node_modules/python-program-analysis");
-
-import { log } from "console";
 
 let recognizedFunctions: Record<string, string> = {}
 
@@ -91,21 +88,28 @@ function blockToLatex(input: any): string {
     return blockToLatex(input.left) + input.op + blockToLatex(input.right);
   }
 
-  else if (input.arg1 !== undefined) {
-    for (var i of input.arg1) {
-      if (i.type === 'assign') {
-        let g = "";
-        for (let f = 0; f < i.targets.length; f++) {
-          g += blockToLatex(i.targets[f]) + "=" + blockToLatex(i.sources[f]) + "\n";
-        }
-        return g;
-      } else {
-        return blockToLatex(input.arg1);
-      }
+  else if (input.type === 'index') {
+    return blockToLatex(input.value) + "_{" + blockToLatex(input.args) + "}";
+  }
+
+  else if (input.type === 'slice') {
+    let start = "";
+    let stop = "";
+    let step = "";
+
+    if (input.start !== undefined) {
+      start = blockToLatex(input.start);
     }
 
-  } else if (input.type === 'index') {
-    return blockToLatex(input.value) + "_{" + blockToLatex(input.args) + "}";
+    if (input.stop !== undefined) {
+      stop = blockToLatex(input.stop);
+    }
+
+    if (input.step !== undefined) {
+      step = blockToLatex(input.step);
+    }
+
+    return "_{" + start + ":" + stop + ":" + step + "}";
   }
 
   else if (input.type === 'tuple') {
@@ -117,7 +121,25 @@ function blockToLatex(input: any): string {
   }
 
   else if (input.type === 'dot') {
-    return blockToLatex(input.value) + "." + input.name;
+    let formattedName = input.name;
+
+    if (formattedName in userRecognizedVariables) {
+      formattedName = userRecognizedVariables[input.name];
+    }
+
+    if (formattedName in recognizedVariables) {
+      formattedName = recognizedVariables[input.name];
+    }
+
+    if (vscode.window.activeTextEditor) {
+      const currentDocument = vscode.window.activeTextEditor.document;
+      const configuration = vscode.workspace.getConfiguration('', currentDocument.uri);
+			if (configuration.get('codetolatex.removeObjectPrefix', {})) {
+        return formattedName;
+      }
+    }
+
+    return "\\text{" + blockToLatex(input.value) + "}" + "\." + formattedName;
   }
 
   else if (input.type === 'call') { // TODO: this should include the conversion of functions to custom latex
@@ -125,16 +147,16 @@ function blockToLatex(input: any): string {
       return blockToLatex(input.arg1);
     }
 
-    let function_signature = "";
+    let functionSignature = "";
 
     if (input.func.id === undefined) {
-      function_signature = input.func.name + ' ' + input.args.length;
+      functionSignature = input.func.name + ' ' + input.args.length;
     } else {
-      function_signature = input.func.id + ' ' + input.args.length;
+      functionSignature = input.func.id + ' ' + input.args.length;
     }
 
-    if(function_signature in recognizedFunctions) {
-      let tempStr = recognizedFunctions[function_signature];
+    if(functionSignature in recognizedFunctions) {
+      let tempStr = recognizedFunctions[functionSignature];
 
       for (let r = 1; r < input.args.length + 1; r++) {
         tempStr = tempStr.replace("$" + r, blockToLatex(input.args[r - 1]));
@@ -151,24 +173,27 @@ function blockToLatex(input: any): string {
     let h = "";
     let underscoreMatch = input.id.match(/\_/g);
 
+    // we only change the underscore if it's a subindex (if there's only one)
     if (underscoreMatch !== null && underscoreMatch.length === 1) {
       let beforeUnderscore = input.id.match(/.*\_/g)[0];
       beforeUnderscore = beforeUnderscore.slice(0, beforeUnderscore.length - 1);
       let afterUnderscore = input.id.match(/\_.*/g)[0];
       afterUnderscore = afterUnderscore.slice(1, afterUnderscore.length);
 
-      if (beforeUnderscore in recognizedVariables) {
-        resultString += recognizedVariables[beforeUnderscore];
-      } else if (beforeUnderscore in userRecognizedVariables) {
+      // we change the variable before and after the underscore
+      // we give priority to the user variables
+      if (beforeUnderscore in userRecognizedVariables) {
         resultString += userRecognizedVariables[beforeUnderscore];
+      } else if (beforeUnderscore in recognizedVariables) {
+        resultString += recognizedVariables[beforeUnderscore];
       } else {
         resultString += beforeUnderscore;
       }
 
-      if (afterUnderscore in recognizedVariables) {
-        resultString += "_{" + recognizedVariables[afterUnderscore] + "}";
-      } else if (afterUnderscore in userRecognizedVariables) {
+      if (afterUnderscore in userRecognizedVariables) {
         resultString += "_{" + userRecognizedVariables[afterUnderscore] + "}";
+      } else if (afterUnderscore in recognizedVariables) {
+        resultString += "_{" + recognizedVariables[afterUnderscore] + "}";
       } else {
         resultString += "_{" + afterUnderscore + "}";
       }
@@ -176,19 +201,23 @@ function blockToLatex(input: any): string {
       return resultString;
     }
 
+    // make it a latex operator
     input.id = input.id.replaceAll(/\_/g, '\\_');
+
+    // regardless of wether we changed the underscore or not, we want to 
+    // check if the end value exists in our recognized variables
+    if (input.id in userRecognizedVariables) {
+      return userRecognizedVariables[input.id];
+    }
 
     if (input.id in recognizedVariables) {
       return recognizedVariables[input.id];
-    } else if (input.id in userRecognizedVariables) {
-      return userRecognizedVariables[input.id];
     }
     return input.id;
   } 
 
   else if (input.type === 'literal') {
     return input.value;
-
   } else {
     let g = "";
     for (var i of input) {
@@ -215,6 +244,7 @@ export default function pythonToLatex(code: string, config: any): string {
   const cfg = new ControlFlowGraph(tree);
 
   let t = cfg.blocks[0].statements;
+  console.log(t);
   let f = blockToLatex(t);
 
   return f;
