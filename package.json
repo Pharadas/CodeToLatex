@@ -2,18 +2,20 @@
   "name": "code-to-latex",
   "displayName": "code-to-latex",
   "description": "",
-  "version": "0.1.2",
+  "version": "0.1.6",
   "engines": {
     "vscode": "^1.82.0"
   },
   "categories": [
     "Other"
   ],
+
   "publisher": "Pharadas",
   "repository": {
     "type": "git",
     "url": "https://github.com/Pharadas/CodeToLatex"
   },
+
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
@@ -22,8 +24,21 @@
         "command": "code-to-latex.lineToLatex",
         "title": "Line to latex"
       }
-    ]
+    ],
+
+    "configuration": {
+      "type": "object",
+      "title": "Code To Latex",
+      "properties": {
+        "codetolatex.removeObjectPrefix": {
+          "type": "boolean",
+          "default": true,
+          "description": "Removes object or module annotation (self.x -> x)"
+        }
+      }
+    }
   },
+
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
