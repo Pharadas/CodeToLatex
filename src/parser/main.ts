@@ -45,79 +45,10 @@ var userRecognizedVariables: Record<string, string> = {};
 
 const recognizedOperators: Record<string, string> = {
   "/": "\\frac{$1}{$2}",
-  "*": "$1$2",
-  "^": "{($1)}^{$2}",
+  "*": "$1\\cdot $2",
+  "**": "{$1}^{$2}",
+  "^": "{$1}^{$2}",
   "=": "$1=$2"
-}
-
-const operatorPrecedence: Record<string, number> = { 
-  "=": 6,
-  "%": 5,
-  "^": 4,
-  "*": 3,
-  "/": 3,
-  "+": 2,
-  "-": 2
-}
-
-const leftAssociativeOperators: Record<string, number> = {
-  "*": 1,
-  "/": 1,
-  "+": 1,
-  "-": 1
-}
-
-const separators: Record<string, number> = {
-  "%": 1,
-  "^": 1,
-  "*": 1,
-  "/": 1,
-  "+": 1,
-  "-": 1,
-  "[": 1,
-  "]": 1,
-  "(": 1,
-  ")": 1,
-  ",": 1,
-  "=": 1,
-  ">": 1,
-  "<": 1
-}
-
-const keywords: Record<string, number> = {
-  "and": 1,
-  "as": 1,
-  "assert": 1,
-  "break": 1,
-  "class": 1,
-  "continue": 1,
-  "def": 1,
-  "del": 1,
-  "elif": 1,
-  "else": 1,
-  "except": 1,
-  "False": 1,
-  "finally": 1,
-  "for": 1,
-  "from": 1,
-  "global": 1,
-  "if": 1,
-  "import": 1,
-  "in": 1,
-  "is": 1,
-  "lambda": 1,
-  "None": 1,
-  "nonlocal": 1,
-  "not": 1,
-  "or": 1,
-  "pass": 1,
-  "raise": 1,
-  "return": 1,
-  "True": 1,
-  "try": 1,
-  "while": 1,
-  "with": 1,
-  "yield": 1,
 }
 
 function blockToLatex(input: any): string {
